@@ -1,0 +1,43 @@
+server:
+  port: 2020
+spring:
+  application:
+    name: medi-food-gateway
+#  autoconfigure:
+#    exclude:
+#      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  # RabbitMQ：异步通知（与知识/食谱/问答服务共用）
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: 82f923d0-7b52-403f-a440-1c61b5ea4fea
+        group: DEFAULT_GROUP
+    # ========== Sentinel 熔断限流配置 ==========
+    sentinel:
+      enabled: true
+      # 控制台地址（Dashboard），启动后可访问 http://localhost:8858 查看实时监控
+      transport:
+        dashboard: localhost:8858
+        port: 8719   # 与 Dashboard 通信的端口，每个服务实例需不同
+      # 饥饿加载：服务启动时立刻初始化 Sentinel，避免首次调用延迟
+      eager: true
+      # 注意：Gateway 限流/熔断规则在 GatewaySentinelConfig.java 中硬编码，启动时自动加载
+      # 无需 Nacos 持久化，如需动态规则管理，可添加 sentinel-datasource-nacos 依赖后启用
+    # ========== 网关路由（唯一来源：GatewayOfJwtConfig.java）==========
+    # yml 中不再定义 lb:// 路由，避免与 Java RouteLocator 冲突导致：
+    #   1) 同一路径被两套路由匹配，行为不确定；
+    #   2) lb:// 路由未挂 JWT 鉴权，存在鉴权绕过风险；
+    #   3) lb:// 路由不做路径重写，而各服务 Controller 前缀并不统一（/api/user、/knowledge、/ai…），会 404。
+    # 各服务目标地址在 GatewayOfJwtConfig 中通过 medifood.service.* 配置，默认指向本机端口；
+    # 云服务器部署时用环境变量覆盖，如 MEDIFOOD_SERVICE_USER=http://user-service:8081。
+    gateway:
+      discovery:
+        locator:
+          enabled: false

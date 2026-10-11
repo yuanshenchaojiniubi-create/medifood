@@ -1,0 +1,120 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: medi-food-knowledge
+  
+  # 数据源配置
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/medifood_circle?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 20
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+        # 监控统计拦截的filters
+      filters: stat,wall,log4j2
+        # 开启 Druid 监控页面
+      stat-view-servlet:
+          enabled: true
+          url-pattern: /druid/*
+          # 监控页面登录账号密码（可选）
+          login-username: admin
+          login-password: admin
+        # 开启 Web 应用监控
+      web-stat-filter:
+          enabled: true
+          url-pattern: /*
+          exclusions: "*.js,*.gif,*.jpg,*.png,*.css,*.ico,/druid/*"
+  
+
+# Nacos 配置
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: 82f923d0-7b52-403f-a440-1c61b5ea4fea
+        group: DEFAULT_GROUP
+    # ========== Sentinel 熔断限流配置 ==========
+    sentinel:
+      enabled: true
+      transport:
+        dashboard: localhost:8858
+        port: 8722
+      eager: true
+# Feign 配置
+    openfeign:
+      sentinel:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 3000
+            read-timeout: 5000
+
+  # Redis 配置
+  data:
+    redis:
+      host: localhost
+      password:
+      database: 0
+      port: 6379
+      timeout: 5000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          max-wait: -1ms
+          min-idle: 0
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+# MyBatis Plus 配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# 日志配置
+logging:
+  level:
+    com.medifood: debug
+    org.springframework: info
+    org.springframework.cloud.openfeign: DEBUG
+    org.springframework.cloud.loadbalancer: TRACE
+    com.medifood.knowledge.feign: DEBUG
+
+# ES同步补偿配置
+es:
+  sync:
+    compensate:
+      enabled: true
+      batch-size: 100
+      knowledge:
+        cron: "0 0/10 * * * ?"

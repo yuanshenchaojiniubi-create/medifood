@@ -1,0 +1,90 @@
+server:
+  port: 3545
+spring:
+  application:
+    name: medi-food-ai
+  cloud:
+    nacos:
+      server-addr: localhost:8848
+      discovery:
+        namespace: 82f923d0-7b52-403f-a440-1c61b5ea4fea
+        group: DEFAULT_GROUP
+    # ========== Sentinel 熔断限流配置 ==========
+    sentinel:
+      enabled: true
+      transport:
+        dashboard: localhost:8858
+        port: 8720   # AI 服务专用端口
+      eager: true
+      # 注意：AI 限流/熔断规则在 AiSentinelConfig.java 中硬编码，启动时自动加载
+    # Feign 集成 Sentinel 熔断
+    openfeign:
+      sentinel:
+        enabled: true
+  ai:
+    deepseek:
+      # 密钥必须通过环境变量 MEDIFOOD_DEEPSEEK_API_KEY 提供（勿写入仓库）
+      api-key: ${MEDIFOOD_DEEPSEEK_API_KEY:}
+  # MySQL 数据源（多轮对话持久化）
+  datasource:
+    url: jdbc:mysql://localhost:3306/medifood_circle?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 2
+      maximum-pool-size: 10
+      connection-timeout: 30000
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  global-config:
+    db-config:
+      id-type: auto
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# MediFood AI 配置（密钥优先从环境变量读取）
+medi-food:
+  ai:
+    deepseek-api-key: ${MEDIFOOD_DEEPSEEK_API_KEY:}
+    siliconflow-api-key: ${MEDIFOOD_SILICONFLOW_API_KEY:}
+    siliconflow-base-url: ${MEDIFOOD_SILICO:https://api.siliconflow.cn}
+    siliconflow-vision-model: ${MEDIFOOD_SILICONFLOW_VISION_MODEL:Qwen/Qwen3-VL-30B-A3B-Instruct}
+    siliconflow-embedding-model: ${MEDIFOOD_SILICONFLOW_EMBEDDING_MODEL:BAAI/bge-large-zh-v1.5}
+
+# SiliconFlow 配置（兼容旧配置，密钥已迁移到 medi-food.ai 节）
+siliconflow:
+  api-key: ${NFLOW_BASE_URLMEDIFOOD_SILICONFLOW_API_KEY:}
+  embedding:
+    base-url: ${MEDIFOOD_SILICONFLOW_BASE_URL:https://api.siliconflow.cn}
+    model: ${MEDIFOOD_SILICONFLOW_EMBEDDING_MODEL:BAAI/bge-large-zh-v1.5}
+    max-input-length: 512
+  vision:
+    base-url: ${MEDIFOOD_SILICONFLOW_BASE_URL:https://api.siliconflow.cn}
+    model: ${MEDIFOOD_SILICONFLOW_VISION_MODEL:Qwen/Qwen3-VL-30B-A3B-Instruct}
+
+# RAG 配置
+rag:
+  chunk:
+    max-size: 500
+    overlap: 50
+  include:
+    metadata: true
+
+# ES 同步配置
+es:
+  sync:
+    retry:
+      max: 3

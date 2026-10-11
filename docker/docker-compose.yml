@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  # MySQL数据库 (轻量配置)
+  mysql:
+    image: mysql:8.0
+    container_name: medifood-mysql
+    restart: always
+    mem_limit: 512m
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: medifood_circle
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./database/seed_admin_and_recipes.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --innodb-buffer-pool-size=256M --max-connections=50
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis缓存 (轻量配置)
+  redis:
+    image: redis:7-alpine
+    container_name: medifood-redis
+    restart: always
+    mem_limit: 256m
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --maxmemory 128mb --appendonly yes
+
+  # RabbitMQ消息队列 (可選，如不需要可註釋)
+  # rabbitmq:
+  #   image: rabbitmq:3.12-management-alpine
+  #   container_name: medifood-rabbitmq
+  #   restart: always
+  #   environment:
+  #     RABBITMQ_DEFAULT_USER: guest
+  #     RABBITMQ_DEFAULT_PASS: guest
+  #   ports:
+  #     - "5672:5672"
+  #     - "15672:15672"
+  #   volumes:
+  #     - rabbitmq-data:/var/lib/rabbitmq
+
+  # Elasticsearch搜索 (需要4G+内存，建议4核8G服务器时再启用)
+  # elasticsearch:
+  #   image: elasticsearch:8.11.0
+  #   container_name: medifood-elasticsearch
+  #   restart: always
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   ports:
+  #     - "9200:9200"
+  #   volumes:
+  #     - es-data:/usr/share/elasticsearch/data
+
+  # Sentinel Dashboard 熔断限流控制台
+  sentinel-dashboard:
+    image: bladex/sentinel-dashboard:1.8.6
+    container_name: medifood-sentinel
+    restart: always
+    mem_limit: 256m
+    environment:
+      - SERVER_PORT=8858
+      - SENTINEL_DASHBOARD_USERNAME=sentinel
+      - SENTINEL_DASHBOARD_PASSWORD=sentinel123
+    ports:
+      - "8858:8858"
+    networks:
+      - medifood-network
+
+  # 后端微服务 (轻量配置，需2核4G)
+  # 注意：当前镜像的 CMD 只启动网关 (medi-food-gateway.jar)，其余服务需在云部署阶段拆分为
+  # 一服务一容器后才会真正监听下列端口；此处端口已按各服务 application.yml 的真实端口修正。
+  backend:
+    build:
+      context: ../.
+      dockerfile: docker/backend/Dockerfile
+    container_name: medifood-backend
+    restart: always
+    mem_limit: 1g
+    cpus: 1
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/medifood_circle?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root123
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_ELASTICSEARCH_URIS=
+    ports:
+      - "8081:8081"  # user
+      - "8082:8082"  # knowledge
+      - "8083:8083"  # recipe
+      - "8085:8085"  # community
+      - "8086:8086"  # qa
+      - "3545:3545"  # ai
+      - "2020:2020"  # gateway
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:2020/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端Nginx
+  frontend:
+    build:
+      context: ../.
+      dockerfile: docker/frontend/Dockerfile
+    container_name: medifood-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    networks:
+      - medifood-network
+
+networks:
+  medifood-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

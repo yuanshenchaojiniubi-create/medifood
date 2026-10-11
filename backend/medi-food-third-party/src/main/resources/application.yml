@@ -1,0 +1,30 @@
+server:
+  port: 1195
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  cloud:
+    nacos:
+      discovery:
+        namespace: 82f923d0-7b52-403f-a440-1c61b5ea4fea
+        group: DEFAULT_GROUP
+      server-addr: localhost:8848
+    # ========== Sentinel 熔断限流配置 ==========
+    sentinel:
+      enabled: true
+      transport:
+        dashboard: localhost:8858
+        port: 8728
+      eager: true
+
+# ========== 阿里云 OSS 配置 ==========
+oss:
+  bucket: medifood
+  endpoint: oss-cn-beijing.aliyuncs.com
+  access-key-id: ${OSS_ACCESS_KEY_ID:}
+  access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+  #domain: cn-beijing.taihangtop.cn
+  upload:
+    dir: upload
+    expire-time: 3600

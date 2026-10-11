@@ -1,0 +1,6 @@
+oss:
+  bucket: medifood
+  endpoint: oss-cn-beijing.aliyuncs.com
+  access-key-id: ${OSS_ACCESS_KEY_ID:}
+  access-key-secret: ${OSS_ACCESS_KEY_SECRET:}
+  #domain: cn-beijing.taihangtop.cn
